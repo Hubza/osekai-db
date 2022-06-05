@@ -19,6 +19,13 @@ class Database {
        return self::$db->connection;
    }
 
+   /**
+    * @param string $strQuery
+    * @param string $strTypes
+    * @param array $colVariables
+    * 
+    * @return array
+    */
    public static function execSelect($strQuery, $strTypes, $colVariables) {
        $mysql = self::getConnection();
        $stmt = $mysql->prepare($strQuery);
@@ -45,6 +52,11 @@ class Database {
         return (array)$hits;
    }
 
+   /**
+    * @param string $strQuery
+    * 
+    * @return array
+    */
    public static function execSimpleSelect($strQuery) {
         $oQuery = self::getConnection()->query($strQuery);
         while ($val = $oQuery->fetch_assoc()) {
@@ -53,6 +65,13 @@ class Database {
         return $hits;
     }
 
+   /**
+    * @param string $strQuery
+    * @param string $strTypes
+    * @param array $colVariables
+    * 
+    * @return void
+    */
    public static function execOperation($strQuery, $strTypes, $colVariables): void {
        $mysql = self::getConnection();
        $stmt = $mysql->prepare($strQuery);
