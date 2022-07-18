@@ -1,89 +1,64 @@
 <?php
-class Database
+class Caching
 {
-
-    private static $db;
-    private $connection;
-
-    private function __construct()
+    /**
+     * @param mixed $name
+     * 
+     * @return [type]
+     */
+    public static function getCache($name)
     {
-        $this->connection = new MySQLi('localhost', 'user', 'password', 'database');
-        $this->connection->set_charset("utf8mb4"); // to fix emojis in comments
-    }
-
-    function __destruct()
-    {
-        $this->connection->close();
-    }
-
-    public static function getConnection()
-    {
-        if (self::$db == null) {
-            self::$db = new Database();
+        $caches = Database::execSelect("SELECT * FROM GlobalCache WHERE Title = ? ORDER BY Date", "s", [$name]);
+        if ($caches == null || count($caches) == 0) {
+            return null;
         }
-        return self::$db->connection;
+        $cache = $caches[0]['Data'];
+        return $cache;
     }
 
     /**
-     * @param string $strQuery
-     * @param string $strTypes
-     * @param array $colVariables
+     * @param mixed $name
+     * @param mixed $expiry
+     * @param mixed $data
      * 
-     * @return array
+     * @return [type]
      */
-    public static function execSelect($strQuery, $strTypes, $colVariables)
+    public static function saveCache($name, $expiry, $data)
     {
-        $mysql = self::getConnection();
-        $stmt = $mysql->prepare($strQuery);
-        $stmt->bind_param($strTypes, ...$colVariables);
-        $stmt->execute();
-        $meta = $stmt->result_metadata();
-
-        while ($field = $meta->fetch_field()) $params[] = &$row[$field->name];
-        $stmt->bind_result(...$params);
-        while ($stmt->fetch()) {
-            foreach ($row as $key => $val) {
-                $c[$key] = $val;
-            }
-            $hits[] = $c;
-        }
-        if ($mysql->more_results()) {
-            $mysql->next_result();
-        }
-        if (isset($hits)) {
-            return $hits;
+        // remove all with existing name
+        Database::execOperation("DELETE FROM GlobalCache WHERE Title = ?", "s", [$name]);
+        // if expiry is not a date, it is a number of seconds
+        if (is_numeric($expiry)) {
+            $expiry = date("Y-m-d H:i:s", time() + $expiry);
         } else {
-            return [];
+            $expiry = $expiry;
         }
-        return (array)$hits;
+
+        Database::execOperation("INSERT INTO GlobalCache (Title, Expiration, Data, Date) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", "sss", [$name, $expiry, $data]);
     }
 
     /**
-     * @param string $strQuery
-     * 
-     * @return array
+     * @return [type]
      */
-    public static function execSimpleSelect($strQuery)
+    public static function cleanCache()
     {
-        $oQuery = self::getConnection()->query($strQuery);
-        while ($val = $oQuery->fetch_assoc()) {
-            $hits[] = $val;
-        }
-        return $hits;
+        // removes expired caches
+        Database::execSimpleSelect("DELETE FROM GlobalCache WHERE Expiration < CURRENT_TIMESTAMP");
     }
 
     /**
-     * @param string $strQuery
-     * @param string $strTypes
-     * @param array $colVariables
+     * @param mixed $cacheName
      * 
-     * @return void
+     * @return [type]
      */
-    public static function execOperation($strQuery, $strTypes, $colVariables): void
+    public static function wipeCache($cacheName)
     {
-        $mysql = self::getConnection();
-        $stmt = $mysql->prepare($strQuery);
-        $stmt->bind_param($strTypes, ...$colVariables);
-        $stmt->execute();
+        Database::execOperation("DELETE FROM GlobalCache WHERE Title = ?", "s", [$cacheName]);
+    }
+
+    public static function wipeCacheFromPrefix($prefix)
+    {
+        Database::execOperation("DELETE FROM GlobalCache WHERE Title LIKE ?", "s", [$prefix . "%"]);
     }
 }
+?>
