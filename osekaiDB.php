@@ -1,7 +1,6 @@
 <?php
 class Database
 {
-
     private static $db;
     private $connection;
 
@@ -86,4 +85,17 @@ class Database
         $stmt->bind_param($strTypes, ...$colVariables);
         $stmt->execute();
     }
+
+    /**
+     * @param string $strQuery
+     * 
+     * @return void
+     */
+    public static function execSimpleOperation($strQuery): void
+    {
+        $mysql = self::getConnection();
+        $stmt = $mysql->prepare($strQuery);
+        $stmt->execute();
+    }
 }
+
